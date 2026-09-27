@@ -36,7 +36,7 @@ export function initMessenger(backend, { pollMs = 8000, view: startView } = {}) 
     document.title = t.title;
     $('title').textContent = t.title; $('intro').textContent = t.intro;
     $('nameLabel').textContent = t.nameLabel; $('textLabel').textContent = t.textLabel; $('noteLabel').textContent = t.noteLabel;
-    $('exampleHint').textContent = `${LIMITS.minWords} to ${LIMITS.maxWords} words, like "${t.example}"`;
+    $('exampleHint').textContent = `${t.textHint} Example: "${t.example}"`;
     const hidden = !state.revealed;
     $('hiddenNote').hidden = !hidden || view.mode !== 'main';
     $('hiddenNote').textContent = hidden ? t.hidden + (state.config.revealAt ? ` The words appear on ${fmt(state.config.revealAt)}.` : '') : '';
@@ -99,7 +99,9 @@ export function initMessenger(backend, { pollMs = 8000, view: startView } = {}) 
     const people = [...new Map((grp.names || []).map((n) => [personKey(n), n])).values()];
     if (grp.hidden) {
       target.append(el('strong', null, anon ? `${people.length} ${people.length === 1 ? 'friend' : 'friends'}` : people.join(', ')));
-      const notes = state.messages.filter((m) => people.some((n) => personKey(n) === personKey(m.name)) && m.hasNote).length;
+      const theirs = state.messages.filter((m) => people.some((n) => personKey(n) === personKey(m.name)));
+      const notes = theirs.filter((m) => m.hasNote).length;
+      if (theirs.length) target.append(el('span', 'card-time', `Sent ${fmt(Math.min(...theirs.map((m) => m.at)))}`));
       target.append(el('span', null, (state.config.revealAt ? `Their words appear on ${fmt(state.config.revealAt)}.` : 'Their words appear at the reveal.') + (notes ? ` ${notes === 1 ? 'A longer message is' : 'Longer messages are'} waiting too.` : '')));
       return;
     }
@@ -109,9 +111,16 @@ export function initMessenger(backend, { pollMs = 8000, view: startView } = {}) 
     people.slice(0, full ? people.length : 3).forEach((n) => {
       const p = personSummary(state.messages, n), sec = el('div', 'card-person');
       sec.append(el('span', 'card-name', anon ? 'A friend' : p.name));
-      const other = p.descriptions.filter((d) => d.trim().toLowerCase() !== grp.show.trim().toLowerCase());
-      if (other.length) sec.append(el('span', 'card-descs', 'Also: ' + other.map((d) => `“${d}”`).join(', ')));
-      for (const note of p.notes) { sec.append(el('p', 'card-note', cut(note))); if (note.length > 180) more = true; }
+      // each thing they sent, oldest first, with when it was sent
+      const entries = full ? p.entries : p.entries.slice(-3);
+      for (const e of entries) {
+        const line = el('div', 'card-entry');
+        const same = typeof e.text === 'string' && e.text.trim().toLowerCase() === grp.show.trim().toLowerCase();
+        line.append(el('span', same ? 'card-this' : 'card-descs', `“${e.text}”`), el('span', 'card-time', fmt(e.at)));
+        sec.append(line);
+        if (e.note) { sec.append(el('p', 'card-note', cut(e.note))); if (e.note.length > 180) more = true; }
+      }
+      if (!full && p.entries.length > entries.length) { sec.append(el('span', 'card-more', `${p.entries.length - entries.length} earlier`)); more = true; }
       target.append(sec);
     });
     if (!full && people.length > 3) { target.append(el('span', 'card-more', `and ${people.length - 3} more`)); more = true; }
@@ -156,7 +165,7 @@ export function initMessenger(backend, { pollMs = 8000, view: startView } = {}) 
   const nameEl = $('name'), textEl = $('text'), noteEl = $('note'), status = $('status'), send = $('send');
   noteEl.addEventListener('input', () => { $('noteCount').textContent = `${noteEl.value.length} / ${LIMITS.note}`; });
   const setStatus = (t, err = false) => { status.textContent = t; status.classList.toggle('error', err); };
-  textEl.addEventListener('input', () => { $('count').textContent = `${wordCount(textEl.value)} / ${LIMITS.maxWords} words`; });
+  textEl.addEventListener('input', () => { $('count').textContent = `${textEl.value.length} / ${LIMITS.phrase}`; });
   function updateForm() {
     const c = state.config;
     let reason = '';
@@ -173,7 +182,7 @@ export function initMessenger(backend, { pollMs = 8000, view: startView } = {}) 
     e.preventDefault();
     const name = nameEl.value.trim(), text = textEl.value.trim().replace(/\s+/g, ' '), wc = wordCount(text);
     if (!name) return setStatus(`Please fill in: ${state.config.text.nameLabel}`, true);
-    if (wc < LIMITS.minWords || wc > LIMITS.maxWords) return setStatus(`Describe Vem in ${LIMITS.minWords} to ${LIMITS.maxWords} words.`, true);
+    if (wc < 1) return setStatus('Write a few words about how you see Vem.', true);
     if (text.length > LIMITS.phrase) return setStatus(`Keep it under ${LIMITS.phrase} characters.`, true);
     if (noteEl.value.length > LIMITS.note) return setStatus(`Keep the longer message under ${LIMITS.note} characters.`, true);
     send.disabled = true; setStatus('Adding...');

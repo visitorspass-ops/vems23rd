@@ -8,6 +8,7 @@ const msg = (id, text, name = 'x') => ({ id, name, text });
 test('word count', () => {
   assert.equal(wordCount(' walking   sunshine '), 2);
   assert.equal(wordCount('the kindest soul'), 3);
+  assert.equal(wordCount('the friend who always remembers my birthday'), 7);
 });
 
 test('descriptions fill pictures in order, then overflow', () => {

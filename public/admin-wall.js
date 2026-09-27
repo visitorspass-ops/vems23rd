@@ -4,7 +4,7 @@ import { cleanConfig, DEFAULT_CONFIG, isRevealed, isOpen } from './wordart.js';
 
 const toLocal = (t) => { if (t == null) return ''; const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const fromLocal = (v) => (v ? new Date(v).getTime() : null);
-const TEXT_FIELDS = ['title', 'intro', 'nameLabel', 'textLabel', 'noteLabel', 'example', 'thanks', 'closed', 'hidden', 'vemWelcome'];
+const TEXT_FIELDS = ['title', 'intro', 'nameLabel', 'textLabel', 'textHint', 'noteLabel', 'example', 'thanks', 'closed', 'hidden', 'vemWelcome'];
 
 export function initWallSettings(backend, { onSaved } = {}) {
   const $ = (id) => document.getElementById(id);

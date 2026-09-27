@@ -6,10 +6,9 @@
 
 export const LIMITS = {
   name: 40,
-  phrase: 32,
+  phrase: 60,         // max characters of a description (no word limit; long ones can be edited)
   note: 1000,         // optional longer message
-  minWords: 2,
-  maxWords: 3,
+  longWords: 4,      // admin list flags descriptions longer than this as 'Long'
   capMin: 5, capMax: 300, capDefault: 40,
   perWindow: 3,
   windowSec: 600,
@@ -114,11 +113,12 @@ export const DEFAULT_CONFIG = {
   slideSeconds: 12,       // party slideshow speed
   text: {
     title: 'Words for Vem',
-    intro: 'Describe how you see Vem in 2 to 3 words. Every description becomes part of her portrait. Hover or tap any word to see who wrote it, and read their messages.',
+    intro: 'Describe how you see Vem in a few words. Every description becomes part of her portrait. Hover or tap any word to see who wrote it, and read their messages.',
     nameLabel: 'What does Vem call you?',
     textLabel: 'How do you see Vem?',
     noteLabel: 'A longer message for Vem (optional)',
     example: 'walking sunshine',
+    textHint: 'Short phrases work best. Longer ones may be shortened to fit the portrait.',
     thanks: 'Added. Thank you!',
     closed: 'Descriptions are closed. Thank you to everyone who took part!',
     hidden: 'The words stay secret until the reveal. For now, each name sits where that person\'s words will appear.',
@@ -135,7 +135,7 @@ export function cleanConfig(c = {}) {
     revealed: c.revealed === undefined ? d.revealed : !!c.revealed,
     hoverNames: c.hoverNames === undefined ? d.hoverNames : !!c.hoverNames,
     slideSeconds: Math.min(120, Math.max(3, Math.round(+c.slideSeconds || d.slideSeconds))),
-    text: Object.fromEntries(Object.keys(d.text).map((k) => [k, clip(t[k], k === 'intro' || k === 'hidden' || k === 'vemWelcome' || k === 'closed' ? 400 : 80, d.text[k])])),
+    text: Object.fromEntries(Object.keys(d.text).map((k) => [k, clip(t[k], k === 'intro' || k === 'hidden' || k === 'vemWelcome' || k === 'closed' || k === 'textHint' ? 400 : 80, d.text[k])])),
   };
 }
 export const isRevealed = (c, now = Date.now()) => !!c.revealed || (c.revealAt != null && now >= c.revealAt);
@@ -156,7 +156,13 @@ export const cleanNote = (s) => String(s ?? '')
 export const personKey = (name) => normalize(name);
 export function personSummary(messages, name) {
   const key = personKey(name), mine = messages.filter((m) => personKey(m.name) === key);
-  return { name: mine.length ? mine[0].name : name, descriptions: mine.map((m) => m.text).filter((t) => typeof t === 'string'), notes: mine.map((m) => m.note).filter(Boolean) };
+  return {
+    name: mine.length ? mine[0].name : name,
+    descriptions: mine.map((m) => m.text).filter((t) => typeof t === 'string'),
+    notes: mine.map((m) => m.note).filter(Boolean),
+    // everything they sent, oldest first, with when it was sent
+    entries: mine.map((m) => ({ text: m.text, note: m.note || '', at: m.at })).sort((a, b) => a.at - b.at),
+  };
 }
 
 export const wordCount = (s) => String(s).trim().split(/\s+/).filter(Boolean).length;

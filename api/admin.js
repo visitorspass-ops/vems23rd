@@ -147,7 +147,7 @@ export default async function handler(req, res) {
         if (!m) return res.status(404).json({ error: 'Description not found.' });
         const name = clean(p.name), text = clean(p.text), wc = wordCount(text);
         if (!name || name.length > LIMITS.name) return res.status(400).json({ error: `Name must be 1 to ${LIMITS.name} characters.` });
-        if (wc < 1 || wc > LIMITS.maxWords || text.length > LIMITS.phrase) return res.status(400).json({ error: `Description must be up to ${LIMITS.maxWords} words and ${LIMITS.phrase} characters.` });
+        if (wc < 1 || text.length > LIMITS.phrase) return res.status(400).json({ error: `Description must be 1 to ${LIMITS.phrase} characters.` });
         const note = cleanNote(p.note);
         if (note.length > LIMITS.note) return res.status(400).json({ error: `The longer message must be under ${LIMITS.note} characters.` });
         const next = { ...m, name, text, editedAt: Date.now() };

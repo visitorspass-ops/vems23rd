@@ -128,3 +128,8 @@ dialog#personCard::backdrop { background: rgba(10, 12, 20, .45); }
 #personCardBody .card-word { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-size: 1.3rem; }
 #personCardBody .card-note { font-size: .95rem; }
 .item .note-preview { white-space: pre-line; font-size: .88rem; color: var(--muted); margin-top: .2rem; }
+.card-entry { display: flex; flex-wrap: wrap; gap: .1rem .5rem; align-items: baseline; }
+.card-this { font-size: .85rem; font-weight: 500; }
+.card-time { font-size: .75rem; opacity: .7; white-space: nowrap; }
+.chip-long { font-size: .72rem; padding: .05rem .45rem; border-radius: 999px; border: 1px solid #c9a227; color: #8a6d00; margin-left: .35rem; vertical-align: middle; }
+@media (prefers-color-scheme: dark) { .chip-long { color: #e8c95a; } }

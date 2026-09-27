@@ -19,8 +19,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Keep the longer message under ${LIMITS.note} characters.` });
   if (!name || name.length > LIMITS.name)
     return res.status(400).json({ error: `Enter what Vem calls you (up to ${LIMITS.name} characters).` });
-  if (wc < LIMITS.minWords || wc > LIMITS.maxWords || text.length > LIMITS.phrase)
-    return res.status(400).json({ error: `Describe Vem in ${LIMITS.minWords} to ${LIMITS.maxWords} words (up to ${LIMITS.phrase} characters).` });
+  if (wc < 1 || text.length > LIMITS.phrase)
+    return res.status(400).json({ error: `Describe Vem in up to ${LIMITS.phrase} characters.` });
 
   try {
     const rk = K.rl(clientIp(req));

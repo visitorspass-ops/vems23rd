@@ -1,6 +1,6 @@
 // Admin page: tune how each photo becomes a word portrait, queue pictures
 // in fill order, and moderate descriptions.
-import { LIMITS, DEFAULT_SETTINGS, BRUSH_W, PERSON_W, REGION, cleanSettings, cleanConfig, encodeMask, decodeMask, encodeBytes, decodeBytes, assign, currentIndex, groupsFor, groupKey, shapeOf, normalize } from './wordart.js';
+import { LIMITS, wordCount, DEFAULT_SETTINGS, BRUSH_W, PERSON_W, REGION, cleanSettings, cleanConfig, encodeMask, decodeMask, encodeBytes, decodeBytes, assign, currentIndex, groupsFor, groupKey, shapeOf, normalize } from './wordart.js';
 import { loadImage, toStoredPhoto } from './analyze.js';
 import { drawArt, sizeCanvas, fontsLoaded, exportPNG, PRINT } from './render.js';
 import { makeSnapshot } from './lock.js';
@@ -347,6 +347,8 @@ export function initAdmin(backend, { canSegment = true, canDownload = true } = {
       const meta = document.createElement('div'); meta.className = 'small';
       meta.textContent = `${new Date(m.at).toLocaleString()}, ${p >= 0 ? 'Picture ' + (p + 1) : 'waiting for a picture'}`;
       if (m.editedAt) meta.textContent += ' (edited)';
+      // sentence-like descriptions are flagged so they're easy to shorten
+      if (wordCount(m.text) > LIMITS.longWords) text.append(Object.assign(document.createElement('span'), { className: 'chip-long', textContent: 'Long', title: 'More than a short phrase: consider shortening it' }));
       info.append(who, text);
       if (m.note) info.append(Object.assign(document.createElement('div'), { className: 'note-preview', textContent: m.note }));
       info.append(meta);

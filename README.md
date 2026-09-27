@@ -1,7 +1,7 @@
 # Words for Vem: word portraits
 
 Friends (no login) enter what Vem calls them and 2 to 3 words describing how
-they see her. In each picture the background stays the original photo, and Vem
+they see her (no word limit; a note says long ones may be shortened, and the admin list tags them "Long"). In each picture the background stays the original photo, and Vem
 herself (with what she wears and holds) is rebuilt from those words. Hover or tap a word to see who wrote it.
 Each picture holds a set number of descriptions, then the next picture starts.
 
