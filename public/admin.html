@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Admin: Words for Vem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=EB+Garamond:wght@400..800&family=IBM+Plex+Sans:wght@400;500&family=Lobster&family=Oswald:wght@300..700&family=Playfair+Display:wght@400..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap" id="adminView">
+  <header><h1>Admin</h1><p class="lede">Tune how each photo becomes a word portrait, queue pictures in the order they fill, and moderate descriptions.</p></header>
+  <section class="card" id="lock">
+    <label>Admin key<input id="key" type="password" autocomplete="current-password"></label>
+    <button class="primary" id="unlock" type="button">Unlock</button>
+    <p class="status" id="lockStatus" role="status"></p>
+  </section>
+  <div id="panel" class="panel" hidden>
+    <section class="card warn" id="ownKeyWarn" hidden style="max-width:none">
+      <h2>Make the admin key yours</h2>
+      <p class="small">You're using the setup key from Vercel. Set your own private key below so only you can open this page.</p>
+    </section>
+    <section class="card" style="max-width:none">
+      <div class="row" style="justify-content:space-between"><h2>Wall settings</h2><button class="ghost" id="signOut" type="button">Sign out</button></div>
+      <p class="small" id="wallStatus"></p>
+      <h3 class="sec">Timing and reveal</h3>
+      <div><p class="group-label">Descriptions</p><div class="chips"><button class="chip" type="button" data-cfg-open="true">Open</button><button class="chip" type="button" data-cfg-open="false">Closed</button></div></div>
+      <div class="grid2">
+        <label>Opens at <span class="hint">optional</span><input id="cfgOpensAt" type="datetime-local"></label>
+        <label>Closes at <span class="hint">optional</span><input id="cfgClosesAt" type="datetime-local"></label>
+        <label>Reveal at <span class="hint">words stay hidden until then</span><input id="cfgRevealAt" type="datetime-local"></label>
+        <label>Slideshow speed <span class="hint">seconds per picture</span><input id="cfgSlide" type="number" min="3" max="120"></label>
+      </div>
+      <p class="small">Reveal mode: until the reveal, visitors see each sender's name in the spot their words will take. The words themselves never leave the server before then.</p>
+      <div class="row"><button class="ghost" id="revealNow" type="button">Reveal the words now</button></div>
+      <div><p class="group-label">Hover shows</p><div class="chips"><button class="chip" type="button" data-cfg-hover="true">The words and who wrote them</button><button class="chip" type="button" data-cfg-hover="false">Only the words (anonymous)</button></div></div>
+      <h3 class="sec">Page text</h3>
+      <div class="grid2">
+        <label>Title<input id="txt-title" maxlength="80"></label>
+        <label>Example description<input id="txt-example" maxlength="80"></label>
+        <label>Name question<input id="txt-nameLabel" maxlength="80"></label>
+        <label>Description question<input id="txt-textLabel" maxlength="80"></label>
+        <label>Longer message question<input id="txt-noteLabel" maxlength="80"></label>
+        <label>Thank-you message<input id="txt-thanks" maxlength="80"></label>
+      </div>
+      <label>Intro<textarea id="txt-intro" rows="2" maxlength="400"></textarea></label>
+      <label>Message while the words are hidden<textarea id="txt-hidden" rows="2" maxlength="400"></textarea></label>
+      <label>Message when closed<textarea id="txt-closed" rows="2" maxlength="400"></textarea></label>
+      <label>Welcome in Vem's view<textarea id="txt-vemWelcome" rows="2" maxlength="400"></textarea></label>
+      <div class="row"><button class="primary" id="saveWall" type="button">Save settings</button><button class="ghost" id="resetText" type="button">Restore default text</button><span class="small" id="wallSaved"></span></div>
+      <h3 class="sec">Links</h3>
+      <div class="links">
+        <div><span class="small">Friends</span><code id="linkVisitors"></code><button class="ghost" id="linkVisitorsCopy" type="button">Copy</button></div>
+        <div><span class="small">Party slideshow</span><code id="linkShow"></code><button class="ghost" id="linkShowCopy" type="button">Copy</button></div>
+        <div><span class="small">Vem's view</span><code id="linkVem"></code><button class="ghost" id="linkVemCopy" type="button">Copy</button></div>
+      </div>
+      <h3 class="sec">Your admin key</h3>
+      <p class="small">Only you should know this. It's stored as a salted hash, so nobody can read it back, including the host. Losing it means resetting it in Vercel.</p>
+      <div class="row"><input id="newKey" type="password" autocomplete="new-password" placeholder="New key (16+ characters)" style="flex:1 1 14rem"><button class="ghost" id="genKey" type="button">Generate</button><button class="primary" id="saveKey" type="button">Save key</button></div>
+      <p class="small" id="keyStatus"></p>
+    </section>
+    <section class="card" style="max-width:none">
+      <h2>Add photos</h2>
+      <input id="files" type="file" accept="image/*" multiple>
+      <div class="chips" id="pending"></div>
+    </section>
+    <section class="card" id="editor" hidden style="max-width:none">
+      <div class="editor-head"><h2 id="edTitle">Picture</h2>
+        <div class="chips"><button class="chip" type="button" data-tab="preview" aria-pressed="true">Preview</button><button class="chip" type="button" data-tab="pixels" aria-pressed="false">Pixels</button><button class="chip" type="button" data-tab="brush" aria-pressed="false">Brush</button><button class="chip" type="button" data-tab="pins" aria-pressed="false">Pins</button></div></div>
+      <div class="editor">
+        <div id="edBox"><canvas id="ed" aria-label="Portrait preview"></canvas><span class="busy" id="edBusy" hidden></span>
+          <p class="small" id="edInfo"></p>
+          <div class="row"><button class="ghost" id="lockBtn" type="button">Lock layout</button><button class="ghost" id="reshuffle" type="button">Reshuffle</button></div>
+          <p class="small" id="lockState"></p>
+          <div class="row" id="printTools"><select id="printPreset" aria-label="Print size"></select><label class="inline"><input type="checkbox" id="printCaption"> Title and date</label><button class="ghost" id="exportPng" type="button">Download PNG</button></div></div>
+        <div class="controls">
+          <div id="pinTools" hidden style="display:grid;gap:.6rem">
+            <p class="small" style="margin:0">Pick a description, then click the picture where it should go. It is placed there before everything else.</p>
+            <select id="pinWhich" aria-label="Description to pin"></select>
+            <label>Pin size<input id="pinSize" type="range" min="4" max="40" value="16"></label>
+            <div class="chips"><button class="chip" type="button" data-pindir="h" aria-pressed="true">Horizontal</button><button class="chip" type="button" data-pindir="v" aria-pressed="false">Vertical</button></div>
+            <div id="pinList" style="display:grid;gap:.4rem"></div>
+          </div>
+          <div id="brushTools" hidden style="display:grid;gap:.6rem">
+            <p class="group-label">Person</p><div class="chips"><button class="chip" type="button" data-brush="person">Person</button><button class="chip" type="button" data-brush="scene">Not person</button></div>
+            <p class="group-label regions-only">Parts</p><div class="chips regions-only"><button class="chip" type="button" data-brush="r-hair">Hair</button><button class="chip" type="button" data-brush="r-skin">Skin</button><button class="chip" type="button" data-brush="r-clothes">Clothes</button><button class="chip" type="button" data-brush="r-accessory">Accessory</button><button class="chip" type="button" data-brush="r-none">Auto</button></div>
+            <p class="group-label">Words</p><div class="chips"><button class="chip" type="button" data-brush="fine" aria-pressed="true">Fine detail</button><button class="chip" type="button" data-brush="empty">Keep empty</button><button class="chip" type="button" data-brush="erase">Erase</button></div>
+            <label>Brush size<input id="brushSize" type="range" min="1" max="10" value="4"></label>
+            <button class="ghost" id="clearBrush" type="button">Clear painted parts, detail and empty strokes</button>
+          </div>
+          <h3 class="sec">What turns into words</h3>
+<div><p class="group-label"></p><div class="chips"><button class="chip" type="button" data-person="words">Person in words, photo background</button><button class="chip" type="button" data-person="white">Person white, background in words</button><button class="chip" type="button" data-person="hair">Person white, hair in words</button><button class="chip" type="button" data-person="off">Everything in words</button></div></div>
+<button class="ghost person-only" id="autoPerson" type="button">Find the person and her parts again</button>
+<h3 class="sec">Pixel blocks (applied first)</h3>
+<div><p class="group-label">Colors</p><div class="chips"><button class="chip" type="button" data-colors="bwb">Only black, blue and white</button><button class="chip" type="button" data-colors="photo">Photo colors</button></div></div>
+<div class="bwb-only"><p class="group-label">Background</p><div class="chips"><button class="chip" type="button" data-bgcolors="photo">Keep the original photo</button><button class="chip" type="button" data-bgcolors="match">Same shades too</button></div></div>
+<label class="pixel-only">Pixel size <span class="hint">bigger blocks = larger same-color patches</span><input id="pixelSize" type="range" min="1" max="12" step="1"></label>
+<label class="pixel-only">Shades <span class="hint">how many steps from black to white</span><input id="pixelColors" type="range" min="2" max="16" step="1"></label>
+<label class="pixel-only">Color match <span class="hint">how strictly a word must sit on one color</span><input id="colorMatch" type="range" min="0" max="1" step="0.05"></label>
+<div class="pixel-only"><p class="group-label">Leftover gaps</p><div class="chips"><button class="chip" type="button" data-gapfill="true">Fill anywhere (letters keep pixel colors)</button><button class="chip" type="button" data-gapfill="false">Leave empty</button></div></div>
+
+<h3 class="sec">Two layers</h3>
+<div><p class="group-label">Text rows</p><div class="chips"><button class="chip" type="button" data-detail="true">Rows of tiny text + accent words</button><button class="chip" type="button" data-detail="false">Accent words only</button></div></div>
+<label class="rows-only">Row size <span class="hint">height of the tiny text rows</span><input id="rowSize" type="range" min="1.5" max="5" step="0.25"></label>
+<label class="rows-only">Face rows <span class="hint">how much finer the rows are on her face</span><input id="faceRow" type="range" min="0.4" max="1" step="0.05"></label>
+<label class="rows-only">Smallest accent word <span class="hint">smaller spaces go to the rows</span><input id="accentMin" type="range" min="2" max="12" step="1"></label>
+<label class="rows-only">Row depth <span class="hint">nudges rows up or down with shading; 0 = straight</span><input id="displace" type="range" min="0" max="1" step="0.05"></label>
+<h3 class="sec">Photo prep</h3>
+<label>Local contrast <span class="hint">deepens eyes, brows and lips</span><input id="contrast" type="range" min="0" max="1" step="0.05"></label>
+<label>Painterly smoothing <span class="hint">flattens skin texture into clean patches, keeps edges</span><input id="paint" type="range" min="0" max="1" step="0.05"></label>
+<label>Paint colors <span class="hint">0 = all colors; fewer = more cohesive</span><input id="palette" type="range" min="0" max="16" step="1"></label>
+<label>Tone bands <span class="hint">0 = smooth; 3 to 6 = clear light, mid and dark zones</span><input id="bands" type="range" min="0" max="6" step="1"></label>
+<h3 class="sec">The person</h3>
+<div class="person-only"><p class="group-label">Style each part (hair, skin, clothes, accessories)</p><div class="chips"><button class="chip" type="button" data-regions="true">On</button><button class="chip" type="button" data-regions="false">Off</button></div></div>
+<label class="person-only">Smooth the person <span class="hint">rounder outline, softer shading, fewer stray lines</span><input id="smooth" type="range" min="0" max="1" step="0.05"></label>
+<label class="person-only">Silhouette line <span class="hint">traced outline of the person</span><input id="personLine" type="range" min="0" max="1" step="0.05"></label>
+<label class="person-only">Feature lines <span class="hint">eyes, lips and folds inside the person</span><input id="personDetail" type="range" min="0" max="1" step="0.05"></label>
+<label class="hair-only">Hair darkness <span class="hint">raise to put words in more of her</span><input id="hairDark" type="range" min="0.05" max="0.6" step="0.01"></label>
+<h3 class="sec">Words</h3>
+<div><p class="group-label">Letters</p><div class="chips"><button class="chip" type="button" data-fill="pixel">Match words to pixel colors</button><button class="chip" type="button" data-fill="photo">Show the photo inside letters</button><button class="chip" type="button" data-fill="flat">One color per word</button></div></div>
+<div><p class="group-label">Type</p><div class="chips"><button class="chip" type="button" data-type="serif">Serif and script</button><button class="chip" type="button" data-type="condensed">Condensed capitals</button></div></div>
+<div><p class="group-label">Color</p><div class="chips"><button class="chip" type="button" data-mode="color">Photo colors</button><button class="chip" type="button" data-mode="ink">Single ink</button></div></div>
+<label class="ink-only">Ink color<input id="ink" type="color"></label>
+<label class="ink-only">Word areas <span class="hint">raise to put words in lighter areas too</span><input id="darkness" type="range" min="0.15" max="0.9" step="0.01"></label>
+<label>Light and shade <span class="hint">dense bold words in dark areas, airy in light ones</span><input id="tonal" type="range" min="0" max="1" step="0.05"></label>
+<label>Leave highlights empty <span class="hint">bright spots stay open like light on her</span><input id="highlights" type="range" min="0" max="1" step="0.05"></label>
+<label>Glaze layer <span class="hint">faint tiny words underneath for depth</span><input id="glaze" type="range" min="0" max="1" step="0.05"></label>
+<label>Variation <span class="hint">small differences in color from word to word</span><input id="jitter" type="range" min="0" max="1" step="0.05"></label>
+<label>Vertical words <span class="hint">share of words upright in parts that run vertically; the rest stay horizontal</span><input id="follow" type="range" min="0" max="1" step="0.05"></label>
+<label>Detail <span class="hint">more = more, smaller words (slower)</span><input id="grid" type="range" min="160" max="320" step="10"></label>
+<label>Biggest words<input id="maxWord" type="range" min="0.04" max="0.16" step="0.005"></label>
+<label>Smallest words <span class="hint">tiny words fill every gap</span><input id="minWord" type="range" min="2" max="5" step="1"></label>
+<label>Keep curves <span class="hint">how many photo edges words must not cross</span><input id="keep" type="range" min="0" max="1" step="0.05"></label>
+<h3 class="sec">Finish</h3>
+<label>Soft edge <span class="hint">blends the person into the photo</span><input id="glow" type="range" min="0" max="1" step="0.05"></label>
+<label>Paper grain<input id="grain" type="range" min="0" max="1" step="0.05"></label>
+<label>Photo tone <span class="hint">soft photo color behind the words</span><input id="underlay" type="range" min="0" max="0.6" step="0.02"></label>
+<div><p class="group-label">Paper behind the words</p><div class="chips"><button class="chip" type="button" data-paper="auto">Auto</button><button class="chip" type="button" data-paper="light">Light</button><button class="chip" type="button" data-paper="dark">Dark</button></div></div>
+<label>Background lines <span class="hint">thin lines along edges in the scene</span><input id="outline" type="range" min="0" max="1" step="0.05"></label>
+<label>Descriptions per picture <span class="hint">then the next picture starts</span><input id="cap" type="number" min="5" max="300" step="1"></label>
+          <div class="row"><button class="primary" id="save" type="button">Add to queue</button><button class="ghost" id="closeEd" type="button">Close</button></div>
+          <p class="status" id="edStatus" role="status"></p>
+        </div>
+      </div>
+    </section>
+    <section><h2 style="margin-bottom:.75rem">Pictures, in fill order</h2><div class="list" id="images"></div></section>
+    
+    <section>
+      <div class="row" style="justify-content:space-between;margin-bottom:.75rem">
+        <div><h2>Descriptions <span class="small" id="msgCount"></span></h2><p class="small" style="margin:.2rem 0 0">Star descriptions to give them the biggest spaces: ★ Featured, then ★★ Top.</p></div>
+        <div class="row"><button class="ghost" id="dlCsv" type="button">Download CSV</button><button class="ghost" id="dlJson" type="button">Download JSON</button><button class="ghost" id="copyTsv" type="button">Copy as TSV for Google Sheets</button></div>
+      </div>
+      <div class="list" id="messages"></div>
+    </section>
+    <section>
+      <div class="row" style="justify-content:space-between;margin-bottom:.75rem"><h2>Trash <span class="small" id="trashCount"></span></h2><button class="ghost danger" id="emptyTrash" type="button">Empty trash</button></div>
+      <div class="list" id="trash"></div>
+    </section>
+    <section class="card" style="max-width:none">
+      <h2>Stats</h2>
+      <div class="stats" id="stats"></div>
+      <p class="small"><strong>Most used words:</strong> <span id="topWords"></span></p>
+      <p class="small"><strong>Most repeated descriptions:</strong> <span id="topDescs"></span></p>
+    </section>
+    <section class="card" style="max-width:none">
+      <h2>Backup and restore</h2>
+      <p class="small">A backup is one file with every picture, description, setting and locked layout. Restoring replaces everything.</p>
+      <div class="row"><button class="ghost" id="backup" type="button">Download backup</button><label class="ghost filebtn">Restore from a backup file<input id="restoreFile" type="file" accept="application/json,.json" hidden></label></div>
+    </section>
+  </div>
+</main>
+<script type="module">
+import { backend } from './backend.js';
+import { initAdmin } from './admin.js';
+initAdmin(backend);
+</script>
+</body>
+</html>

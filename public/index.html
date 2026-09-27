@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Words for Vem</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=EB+Garamond:wght@400..800&family=IBM+Plex+Sans:wght@400;500&family=Lobster&family=Oswald:wght@300..700&family=Playfair+Display:wght@400..900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<main class="wrap" id="messengerView">
+  <header id="mainHead">
+    <h1 id="title">Words for Vem</h1>
+    <p class="lede" id="intro"></p>
+    <p class="note" id="hiddenNote" hidden></p>
+  </header>
+  <section aria-label="Word portrait" id="section">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <div class="canvas-box" id="box">
+      <canvas id="art" role="img" aria-label="Photo of Vem, her figure made of friends' descriptions"></canvas>
+      <span class="busy" id="busy" hidden>Arranging words...</span>
+      <div class="tip" id="tip" hidden></div>
+      <p class="empty" id="empty" hidden>The first picture hasn't been added yet. Check back soon.</p>
+    </div>
+    <div class="row" style="justify-content:space-between"><p class="meter" id="meter"></p><button class="ghost" id="savePng" type="button" hidden>Save this picture</button></div>
+  </section>
+  <section id="gallery" hidden aria-label="All pictures"></section>
+  <dialog id="personCard" aria-label="Messages">
+    <div id="personCardBody"></div>
+    <button class="ghost" id="personCardClose" type="button">Close</button>
+  </dialog>
+  <form class="card" id="form" novalidate>
+    <h2>Add your words</h2>
+    <label><span id="nameLabel">What does Vem call you?</span><input id="name" maxlength="40" autocomplete="nickname" required></label>
+    <label><span id="textLabel">How do you see Vem?</span> <span class="hint" id="exampleHint"></span>
+      <input id="text" maxlength="32" autocomplete="off" required></label>
+    <span class="count" id="count">0 / 3 words</span>
+    <label><span id="noteLabel">A longer message for Vem (optional)</span> <span class="hint">shown when someone hovers or taps your words</span>
+      <textarea id="note" rows="4" maxlength="1000"></textarea></label>
+    <span class="count" id="noteCount">0 / 1000</span>
+    <input class="hp" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <button id="send" type="submit">Add my words</button>
+    <p class="status" id="status" role="status" aria-live="polite"></p>
+  </form>
+</main>
+<script type="module">
+import { backend } from './backend.js';
+import { initMessenger } from './app.js';
+initMessenger(backend);
+</script>
+</body>
+</html>
