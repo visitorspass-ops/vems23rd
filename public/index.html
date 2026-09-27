@@ -32,12 +32,12 @@
     <button class="ghost" id="personCardClose" type="button">Close</button>
   </dialog>
   <form class="card" id="form" novalidate>
-    <h2>Add your words</h2>
+    <h2 id="formTitle">Add your words</h2>
     <label><span id="nameLabel">What does Vem call you?</span><input id="name" maxlength="40" autocomplete="nickname" required></label>
     <label><span id="textLabel">How do you see Vem?</span> <span class="hint" id="exampleHint"></span>
       <input id="text" maxlength="60" autocomplete="off" required></label>
     <span class="count" id="count">0 / 60</span>
-    <label><span id="noteLabel">A longer message for Vem (optional)</span> <span class="hint">shown when someone hovers or taps your words</span>
+    <label><span id="noteLabel">A longer message for Vem (optional)</span> <span class="hint" id="noteHint">shown when someone hovers or taps your words</span>
       <textarea id="note" rows="4" maxlength="1000"></textarea></label>
     <span class="count" id="noteCount">0 / 1000</span>
     <input class="hp" id="website" name="website" tabindex="-1" autocomplete="off" aria-hidden="true">

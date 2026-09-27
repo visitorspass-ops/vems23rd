@@ -4,7 +4,7 @@ import { cleanConfig, DEFAULT_CONFIG, isRevealed, isOpen } from './wordart.js';
 
 const toLocal = (t) => { if (t == null) return ''; const d = new Date(t); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
 const fromLocal = (v) => (v ? new Date(v).getTime() : null);
-const TEXT_FIELDS = ['title', 'intro', 'nameLabel', 'textLabel', 'textHint', 'noteLabel', 'example', 'thanks', 'closed', 'hidden', 'vemWelcome'];
+const TEXT_FIELDS = ['title', 'intro', 'formTitle', 'nameLabel', 'textLabel', 'textHint', 'noteLabel', 'noteHint', 'example', 'sendLabel', 'thanks', 'empty', 'closed', 'hidden', 'vemWelcome'];
 
 export function initWallSettings(backend, { onSaved } = {}) {
   const $ = (id) => document.getElementById(id);
@@ -38,12 +38,12 @@ export function initWallSettings(backend, { onSaved } = {}) {
     if (ra !== cfg.revealAt) { cfg.revealAt = ra; if (ra && ra > Date.now()) cfg.revealed = false; }
     cfg.slideSeconds = Number($('cfgSlide').value);
     for (const k of TEXT_FIELDS) cfg.text[k] = $('txt-' + k).value;
-    try { await backend.admin('setConfig', { config: cleanConfig(cfg) }); $('wallSaved').textContent = 'Saved.'; onSaved && onSaved(); }
+    try { await backend.admin('setConfig', { config: cleanConfig(cfg) }); $('wallSaved').textContent = 'Saved. Open pages update within a few seconds.'; onSaved && onSaved(); }
     catch (e) { $('wallSaved').textContent = e.message; }
-    setTimeout(() => ($('wallSaved').textContent = ''), 3000);
+    setTimeout(() => ($('wallSaved').textContent = ''), 5000);
   }
   $('saveWall').onclick = save;
-  $('resetText').onclick = () => { for (const k of TEXT_FIELDS) $('txt-' + k).value = DEFAULT_CONFIG.text[k]; };
+  $('resetText').onclick = () => { for (const k of TEXT_FIELDS) $('txt-' + k).value = DEFAULT_CONFIG.text[k]; $('wallSaved').textContent = 'Default text filled in. Click Save settings to use it.'; };
 
   // Share links
   const base = location.origin && location.origin !== 'null' ? location.origin + '/' : '(your site address)/';

@@ -117,6 +117,10 @@ export const DEFAULT_CONFIG = {
     nameLabel: 'What does Vem call you?',
     textLabel: 'How do you see Vem?',
     noteLabel: 'A longer message for Vem (optional)',
+    noteHint: 'shown when someone hovers or taps your words',
+    formTitle: 'Add your words',
+    sendLabel: 'Add my words',
+    empty: "The first picture hasn't been added yet. Check back soon.",
     example: 'walking sunshine',
     textHint: 'Short phrases work best. Longer ones may be shortened to fit the portrait.',
     thanks: 'Added. Thank you!',
@@ -135,7 +139,7 @@ export function cleanConfig(c = {}) {
     revealed: c.revealed === undefined ? d.revealed : !!c.revealed,
     hoverNames: c.hoverNames === undefined ? d.hoverNames : !!c.hoverNames,
     slideSeconds: Math.min(120, Math.max(3, Math.round(+c.slideSeconds || d.slideSeconds))),
-    text: Object.fromEntries(Object.keys(d.text).map((k) => [k, clip(t[k], k === 'intro' || k === 'hidden' || k === 'vemWelcome' || k === 'closed' || k === 'textHint' ? 400 : 80, d.text[k])])),
+    text: Object.fromEntries(Object.keys(d.text).map((k) => [k, clip(t[k], ['intro', 'hidden', 'vemWelcome', 'closed', 'textHint', 'noteHint', 'empty'].includes(k) ? 400 : 80, d.text[k])])),
   };
 }
 export const isRevealed = (c, now = Date.now()) => !!c.revealed || (c.revealAt != null && now >= c.revealAt);

@@ -36,6 +36,7 @@ export function initMessenger(backend, { pollMs = 8000, view: startView } = {}) 
     document.title = t.title;
     $('title').textContent = t.title; $('intro').textContent = t.intro;
     $('nameLabel').textContent = t.nameLabel; $('textLabel').textContent = t.textLabel; $('noteLabel').textContent = t.noteLabel;
+    $('noteHint').textContent = t.noteHint; $('formTitle').textContent = t.formTitle; $('send').textContent = t.sendLabel; $('empty').textContent = t.empty;
     $('exampleHint').textContent = `${t.textHint} Example: "${t.example}"`;
     const hidden = !state.revealed;
     $('hiddenNote').hidden = !hidden || view.mode !== 'main';
