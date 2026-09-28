@@ -189,6 +189,7 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
   const sizes = levels.map((l) => l.s);
 
   // Pinned descriptions go exactly where the admin put them, before anything else.
+  const pinnedAt = [];
   for (const pin of layer === 'main' ? pins : []) {
     if (pin.g == null || !groups[pin.g]) continue;
     const text = caps ? groups[pin.g].shape.toUpperCase() : groups[pin.g].shape;
@@ -201,8 +202,38 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
       const j = y * W + x; occ[j] = 1; owner[j] = idx; R += rgb[j * 3]; G += rgb[j * 3 + 1]; B += rgb[j * 3 + 2]; n++;
     }
     placements.push({ g: pin.g, sh: text, mw: pts.mw, x: pin.x, y: pin.y, s: pin.s, ang: pin.ang, f, color: n ? [R / n, G / n, B / n] : [0, 0, 0], j: 0, pinned: true });
+    pinnedAt.push({ g: pin.g, x: pin.x, y: pin.y, s: pin.s });
     if (owed.has(pin.g)) owed.set(pin.g, 0);
   }
+  // Keep copies of the same description apart, so neighbors are always different.
+  const placedBy = groups.map(() => []);
+  for (const q of pinnedAt) placedBy[q.g].push(q);
+  const gap = (g, x, y, s) => {
+    let m = Infinity;
+    for (const q of placedBy[g]) { const d = Math.hypot(q.x - x, q.y - y) - (q.s + s) * 1.5; if (d < m) m = d; }
+    return m;
+  };
+  const minGap = W * 0.16;
+  // Cap accent copies per description, so short ones don't take over every small gap
+  // (leftover space goes to the text rows, which carry every description).
+  const copies = new Array(groups.length).fill(0);
+  const maxCopies = Math.max(3, Math.min(20, Math.round(90 / Math.max(1, groups.length))));
+  const full = (g) => copies[g] >= maxCopies + (groups[g].star ? 2 : 0) + Math.min(4, (groups[g].weight || 1) - 1);
+  // Pick, from the next few in line, the description whose nearest copy is farthest away.
+  const pickApart = (x, y, s) => {
+    let best = -1, bestGap = -Infinity;
+    for (let j = 0; j < Math.min(10, deck.length); j++) {
+      const g = deck[(di + j) % deck.length];
+      if (full(g)) continue;
+      const d = gap(g, x, y, s);
+      if (d >= minGap) { best = j; bestGap = d; break; }
+      if (d > bestGap) { best = j; bestGap = d; }
+    }
+    if (best < 0 || bestGap < minGap * 0.5) return -1; // every option is capped or has a copy close by: leave this spot
+    const a = di % deck.length, b = (di + best) % deck.length;
+    [deck[a], deck[b]] = [deck[b], deck[a]]; di++;
+    return deck[a];
+  };
   let last = performance.now(), done = 0;
   for (let si = 0; si < sizes.length; si++) {
     const s = sizes[si], anywhere = si === gapPass, lv = levels[si];
@@ -210,7 +241,15 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
     const book = lv.deck === 'all' ? owedAll : owed;
     let lp = 0, owedList = lv.deck === 'owed' || lv.deck === 'all' ? [...book.keys()].filter((g) => book.get(g) > 0) : null;
     if (owedList && !owedList.length) continue;
-    const pickG = () => (owedList ? owedList[lp++ % owedList.length] : lv.deck ? lv.deck[Math.floor(r() * lv.deck.length)] : nextGroup());
+    const pickG = (x, y) => {
+      if (owedList) {
+        // owed descriptions: take the next one that has no copy nearby
+        for (let t = 0; t < owedList.length; t++) { const g = owedList[(lp + t) % owedList.length]; if (gap(g, x, y, s) >= minGap) { lp += t + 1; return g; } }
+        return -1;
+      }
+      if (lv.deck) { for (let t = 0; t < 6; t++) { const g = lv.deck[Math.floor(r() * lv.deck.length)]; if (gap(g, x, y, s) >= minGap * 0.5) return g; } return -1; }
+      return pickApart(x, y, s);
+    };
     const stride = layer === 'glaze' ? 2 : s <= 3 ? 1 : Math.max(1, Math.floor(s * 0.45));
     const cand = [];
     for (let y = 0; y < H; y += stride) for (let x = 0; x < W; x += stride) {
@@ -222,14 +261,15 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
 
     for (const i of cand) {
       if (occ[i]) continue;
-      const reg = useReg ? region[i] : 0, t = tone[i];
+      const reg = useReg ? region[i] : 0, t = tone[i], cx = i % W, cy = (i - cx) / W;
       // Tonal density: lighter areas skip more spots (glaze layer ignores this).
       if (layer === 'main' && !anywhere && !lv.star && S.tonal > 0 && !ink) {
         const dense = useReg ? STYLE[reg].dense : 0;
         if (r() < Math.max(0, S.tonal * Math.pow(t, 1.5) * 0.9 - dense * 0.4)) continue;
       }
-      const cx = i % W, cy = (i - cx) / W;
-      const gi = pickG(), raw = groups[gi].shape, text = caps ? raw.toUpperCase() : raw;
+      const gi = pickG(cx, cy);
+      if (gi < 0) continue;
+      const raw = groups[gi].shape, text = caps ? raw.toUpperCase() : raw;
       // long descriptions try a wrapped block first (preferred lines, then fewer)
       const want = linesFor(Array.from(raw).length), variants = [];
       for (let n = want; n >= 1; n--) { const w = wrapLines(text, n); if (n === 1 || w.br.length) variants.push(w); }
@@ -271,6 +311,7 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
         occ[j] = 1; owner[j] = idx; R += rgb[j * 3]; G += rgb[j * 3 + 1]; B += rgb[j * 3 + 2];
       }
       placements.push({ g: gi, sh: used.text, br: used.br, lines: used.br.length + 1, mw: pts.mw, x: cx, y: cy, s, ang, f, color: [R / n, G / n, B / n], j: r() * 2 - 1 });
+      placedBy[gi].push({ x: cx, y: cy, s }); copies[gi]++;
       if (owedList && book.get(gi) > 0) {
         book.set(gi, book.get(gi) - 1);
         owedList = owedList.filter((g) => book.get(g) > 0);
@@ -315,6 +356,40 @@ export function layoutRows(A, S, groups, accent, { seed = 1, brush = null } = {}
   for (let k = deck.length - 1; k > 0; k--) { const j = Math.floor(r() * (k + 1)); [deck[k], deck[j]] = [deck[j], deck[k]]; }
   let di = 0;
   const sep = '  ·  ', widths = groups.map((g) => unitWidth((caps ? g.shape.toUpperCase() : g.shape) + sep, { fam, w: 500 }));
+  // A row item "touches" a copy of itself if the same description is next to it in
+  // the row, overlaps it in the 2 rows above, or sits in an accent word right there.
+  let recent = [];
+  const accentBy = groups.map(() => []);
+  if (accent) for (const p of accent.placements) accentBy[p.g].push(p);
+  // Distance to the nearest copy of description g (0 = touching). Row copies count
+  // within 2 rows; accent copies count within the box the accent word covers.
+  const nearest = (g, xs, y, h, w) => {
+    let m = Infinity;
+    for (let k = recent.length - 1; k >= 0 && k >= recent.length - 900; k--) {
+      const q = recent[k];
+      if (q.g !== g || Math.abs(q.y - y) > h * 2.2) continue;
+      const dx = Math.max(0, q.x0 - (xs + w), xs - q.x1);
+      if (dx < m) m = dx;
+    }
+    for (const p of accentBy[g]) {
+      // keep row copies well clear of the same description's accent word
+      if (Math.abs(p.y - y) > p.s * 2 + h * 3) continue;
+      const dx = Math.max(0, Math.abs(p.x - (xs + w / 2)) - (p.mw || p.s * 4) / 2 - w / 2 - h * 3);
+      if (dx < m) m = dx;
+    }
+    return m;
+  };
+  const nextApart = (xs, y, h, size) => {
+    let best = 0, bestD = -1;
+    for (let j = 0; j < deck.length; j++) {
+      const g = deck[(di + j) % deck.length], d = nearest(g, xs, y, h, widths[g] * size);
+      if (d > h * 2) { best = j; bestD = d; break; }   // nothing of its own nearby: take it
+      if (d > bestD) { best = j; bestD = d; }          // otherwise the one with the farthest copy
+    }
+    const a = di % deck.length, b = (di + best) % deck.length;
+    [deck[a], deck[b]] = [deck[b], deck[a]]; di++;
+    return deck[a];
+  };
   for (const face of [false, true]) {
     const h = S.rowSize * (face ? S.faceRow : 1);
     for (let y = 0; y + h <= H; y += h) {
@@ -328,7 +403,8 @@ export function layoutRows(A, S, groups, accent, { seed = 1, brush = null } = {}
         const run = { y, h, x0, x1: x, items: [] }, size = h * 0.92;
         let xs = x0 - r() * widths[deck[di % deck.length]] * size; // stagger so words don't line up in columns
         while (xs < x) {
-          const g = deck[di++ % deck.length], w = widths[g] * size, cxm = Math.min(W - 1, Math.max(0, Math.round(xs + w / 2)));
+          const g = nextApart(xs, y, h, size), w = widths[g] * size, cxm = Math.min(W - 1, Math.max(0, Math.round(xs + w / 2)));
+          recent.push({ g, x0: xs, x1: xs + w, y });
           const t = tone[yc * W + Math.min(x - 1, Math.max(x0, cxm))], F = FAMILIES[fam];
           const wt = Math.round((F.lo + (F.hi - F.lo) * Math.min(1, 1.15 - t)) / 100) * 100; // darker = bolder
           const dy = S.displace ? (0.5 - t) * S.displace * h * 0.8 : 0;
