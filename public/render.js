@@ -1,5 +1,5 @@
 // Drawing (browser).
-import { FAMILIES, fontCss } from './layout.js';
+import { FAMILIES, fontCss, LINE_H } from './layout.js';
 import { PERSON_W } from './wordart.js';
 import { contourSegments } from './person.js';
 import { nearestPalette } from './prep.js';
@@ -40,7 +40,18 @@ function flatColor(p, S, paper, A) {
 function drawText(ctx, p, k, txt) {
   ctx.font = fontCss(p.f, p.s * k);
   ctx.save(); ctx.translate((p.x + 0.5) * k, (p.y + 0.5) * k); ctx.rotate(p.ang);
-  ctx.fillText(txt, 0, 0, p.mw ? Math.max(1, p.mw * k * 1.02) : undefined); ctx.restore();
+  const maxW = p.mw ? Math.max(1, p.mw * k * 1.02) : undefined, chars = Array.from(txt);
+  if (p.br && p.br.length && chars.length === Array.from(p.sh).length) {
+    // wrapped description: break the real words at the same places as the layout's shape
+    const lines = [], cuts = [-1, ...p.br, chars.length];
+    for (let i = 0; i < cuts.length - 1; i++) lines.push(chars.slice(cuts[i] + 1, cuts[i + 1]).join(''));
+    const lh = p.s * k * LINE_H;
+    lines.forEach((l, i) => ctx.fillText(l, 0, (i - (lines.length - 1) / 2) * lh, maxW));
+  } else if (p.br && p.br.length) {
+    // before the reveal the block shows a name: center it in the block
+    ctx.fillText(txt, 0, 0, maxW);
+  } else ctx.fillText(txt, 0, 0, maxW);
+  ctx.restore();
 }
 
 // Words either in flat colors, or as windows onto the painted photo.

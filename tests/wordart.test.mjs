@@ -76,3 +76,18 @@ test('long messages keep line breaks and are grouped by person', () => {
   assert.deepEqual(p.descriptions, ['kind heart', 'brave soul']);
   assert.deepEqual(p.notes, ['first note']);
 });
+
+import { wrapLines, linesFor } from '../public/layout.js';
+
+test('long descriptions wrap into balanced lines at spaces', () => {
+  const t = 'the friend who remembers every birthday first';
+  assert.equal(linesFor(t.length), 3);
+  const w = wrapLines(t, 3);
+  assert.equal(w.br.length, 2);
+  const lines = w.text.split('\n');
+  assert.equal(lines.length, 3);
+  assert.equal(lines.join(' '), t);                       // nothing lost
+  const lens = lines.map((l) => l.length);
+  assert.ok(Math.max(...lens) - Math.min(...lens) <= 8);  // roughly balanced
+  assert.deepEqual(wrapLines('kind soul', 1).br, []);
+});

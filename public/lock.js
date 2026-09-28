@@ -11,7 +11,7 @@ export function makeSnapshot(art) {
   const key = (g) => art.groups[g].key;
   return {
     W: art.A.W, H: art.A.H, at: Date.now(),
-    accent: art.L.placements.map((p) => ({ k: key(p.g), x: p.x, y: p.y, s: p.s, ang: p.ang, f: p.f, mw: p.mw, sh: p.sh, pinned: !!p.pinned })),
+    accent: art.L.placements.map((p) => ({ k: key(p.g), x: p.x, y: p.y, s: p.s, ang: p.ang, f: p.f, mw: p.mw, sh: p.sh, br: p.br || [], lines: p.lines || 1, pinned: !!p.pinned })),
     rows: art.R ? art.R.runs.map((r) => ({ y: r.y, h: r.h, x0: r.x0, x1: r.x1, items: r.items.map((it) => ({ k: key(it.g), x: it.x, w: it.w, f: it.f, dy: it.dy })) })) : [],
     size: art.R ? art.R.size : 0.92, caps: art.R ? art.R.caps : false,
   };

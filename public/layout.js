@@ -20,6 +20,7 @@ export const FAMILIES = {
 export const fontCss = (f, px) => `${f.w} ${px}px "${FAMILIES[f.fam].family}", Georgia, serif`;
 
 const OS = 2; // glyphs rasterized at 2x the cell grid, then pooled
+export const LINE_H = 1.05; // line spacing for multi-line descriptions, in font sizes
 const glyphCache = new Map();
 let gctx = null;
 function glyph(text, f, size, ang) {
@@ -29,12 +30,15 @@ function glyph(text, f, size, ang) {
   if (!gctx) gctx = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
   const ctx = gctx;
   ctx.font = fontCss(f, size * OS);
-  const tw = ctx.measureText(text).width, th = size * OS * 1.1;
+  // Multi-line blocks: lines separated by \n, stacked and centered.
+  const lines = text.split('\n'), lh = size * OS * LINE_H;
+  const tw = Math.max(...lines.map((l) => ctx.measureText(l).width)), th = size * OS * 1.1 + (lines.length - 1) * lh;
   const R = Math.ceil(Math.hypot(tw, th) / 2) + 2;
   ctx.canvas.width = ctx.canvas.height = 2 * R;
   ctx.font = fontCss(f, size * OS);
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#000';
-  ctx.translate(R, R); ctx.rotate(ang); ctx.fillText(text, 0, 0);
+  ctx.translate(R, R); ctx.rotate(ang);
+  lines.forEach((l, i) => ctx.fillText(l, 0, (i - (lines.length - 1) / 2) * lh));
   const data = ctx.getImageData(0, 0, 2 * R, 2 * R).data;
   const cells = Math.ceil((2 * R) / OS), pts = [];
   for (let cy = 0; cy < cells; cy++) for (let cx = 0; cx < cells; cx++) {
@@ -52,6 +56,26 @@ function glyph(text, f, size, ang) {
   return g;
 }
 export { glyph };
+
+// Split a description into n balanced lines at spaces. Returns the text with \n
+// and the break positions (character indices), so the shown words split identically.
+export function wrapLines(text, n) {
+  const chars = Array.from(text);
+  if (n <= 1) return { text, br: [] };
+  const spaces = chars.map((c, i) => (c === ' ' ? i : -1)).filter((i) => i > 0);
+  if (spaces.length < n - 1) return { text, br: [] };
+  const br = [];
+  for (let k = 1; k < n; k++) {
+    const target = (chars.length * k) / n;
+    let best = -1;
+    for (const sp of spaces) if (!br.includes(sp) && (best < 0 || Math.abs(sp - target) < Math.abs(best - target))) best = sp;
+    br.push(best);
+  }
+  br.sort((a, b) => a - b);
+  return { text: chars.map((c, i) => (br.includes(i) ? '\n' : c)).join(''), br };
+}
+// Preferred number of lines for a description of this length (up to 3).
+export const linesFor = (len) => (len <= 16 ? 1 : len <= 34 ? 2 : 3);
 
 // Per-part style: size multiplier, extra darkness (weight), density boost.
 const STYLE = {
@@ -141,11 +165,19 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
   const minS = twoLayer ? Math.max(S.minWord, S.accentMin) : S.minWord;
   // how many big placements each chosen description is owed (top: 2, featured: 1)
   const owed = new Map([...topG.map((g) => [g, 2]), ...featG.map((g) => [g, 1])]);
+  // everyone else is owed one readable spot too; long descriptions are hardest, so they go first
+  const everyone = groups.map((g, i) => i).filter((i) => !owed.has(i)).sort((a, b) => groups[b].shape.length - groups[a].shape.length);
+  const owedAll = new Map(everyone.map((g) => [g, 1]));
+  const readable = Math.max(minS, 6);
   if (layer === 'glaze') levels.push({ s: S.minWord, deck: null });
   else {
     if (owed.size) for (const f of [1.1, 0.95, 0.8, 0.68, 0.56, 0.45]) {
       const sz = Math.round(maxS * f);
       if (sz >= minS) levels.push({ s: sz, deck: 'owed', star: true });
+    }
+    for (const f of [0.75, 0.62, 0.5, 0.42, 0.34, 0.28]) {
+      const sz = Math.max(readable, Math.round(maxS * f));
+      if (!levels.some((l) => l.deck === 'all' && l.s === sz)) levels.push({ s: sz, deck: 'all', star: true });
     }
     for (let s = maxS; s >= minS; s = s > minS + 1 ? Math.round(s * 0.8) : s - 1)
       levels.push({ s, deck: levels.filter((l) => !l.star).length < 2 && owed.size ? [...topG, ...topG, ...featG, ...deck] : null });
@@ -175,7 +207,8 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
   for (let si = 0; si < sizes.length; si++) {
     const s = sizes[si], anywhere = si === gapPass, lv = levels[si];
     // starred levels only hand out descriptions that are still owed a big spot, in order
-    let lp = 0, owedList = lv.deck === 'owed' ? [...owed.keys()].filter((g) => owed.get(g) > 0) : null;
+    const book = lv.deck === 'all' ? owedAll : owed;
+    let lp = 0, owedList = lv.deck === 'owed' || lv.deck === 'all' ? [...book.keys()].filter((g) => book.get(g) > 0) : null;
     if (owedList && !owedList.length) continue;
     const pickG = () => (owedList ? owedList[lp++ % owedList.length] : lv.deck ? lv.deck[Math.floor(r() * lv.deck.length)] : nextGroup());
     const stride = layer === 'glaze' ? 2 : s <= 3 ? 1 : Math.max(1, Math.floor(s * 0.45));
@@ -197,16 +230,21 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
       }
       const cx = i % W, cy = (i - cx) / W;
       const gi = pickG(), raw = groups[gi].shape, text = caps ? raw.toUpperCase() : raw;
+      // long descriptions try a wrapped block first (preferred lines, then fewer)
+      const want = linesFor(Array.from(raw).length), variants = [];
+      for (let n = want; n >= 1; n--) { const w = wrapLines(text, n); if (n === 1 || w.br.length) variants.push(w); }
       let ang = 0;
       if (S.follow > 0) {
         if (useReg ? vertReg[reg] && r() < S.follow : coh[i] > 0.3 && Math.abs(angle[i]) > Math.PI / 4 && r() < S.follow * 0.7) ang = -Math.PI / 2;
       }
       const f = layer === 'glaze' ? { fam: caps ? 'osw' : 'gara', w: caps ? 300 : 400 } : pickFont(S, reg, t, s, maxS, r);
       // Starred words try both directions and may cross more fine edges (curls).
-      const tries = lv.star ? [ang, ang ? 0 : -Math.PI / 2] : [ang];
-      let pts = null, n = 0;
-      for (const a2 of tries) {
-        const g2 = glyph(text, f, s, a2);
+      const angles = lv.star ? [ang, ang ? 0 : -Math.PI / 2] : [ang];
+      const tries = [];
+      for (const v of lv.star ? variants : variants.slice(0, 1)) for (const a2 of angles) tries.push([v, a2]);
+      let pts = null, n = 0, used = variants[0];
+      for (const [v, a2] of tries) {
+        const g2 = glyph(v.text, f, s, a2);
         let ok = g2.length > 0, edgeHits = 0, tooBig = 0, off = 0;
         const lc = pix ? pix.label[i] : 255;
         for (let p = 0; p < g2.length && ok; p += 2) {
@@ -214,7 +252,7 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
           if (x < 0 || y < 0 || x >= W || y >= H) { ok = false; break; }
           const j = y * W + x;
           if (occ[j] || (lv.star ? !starOK[j] : !allowed[j] || hardEdge[j])) { ok = false; break; }
-          if (useReg && region[j] !== reg && A.person[j]) { ok = false; break; } // stay within one part (hair, gown...)
+          if (useReg && lv.deck !== 'all' && region[j] !== reg && A.person[j]) { ok = false; break; } // stay within one part (guaranteed spots may span parts)
           if (edge[j]) edgeHits++;
           if (cap[j] < s * 0.7) tooBig++;
           if (pix && pix.label[j] !== lc) off++;
@@ -223,7 +261,7 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
         if (!ok || (!lv.star && edgeHits > Math.max(1, nn * 0.03)) || (!lv.star && tooBig > nn * 0.15)) continue;
         // Same-color rule: the word must sit (almost) entirely on one color patch.
         if (pix && !anywhere && !lv.star && off > nn * (1 - S.colorMatch) * 0.6) continue;
-        pts = g2; n = nn; ang = a2; break;
+        pts = g2; n = nn; ang = a2; used = v; break;
       }
       if (!pts) continue;
       const idx = placements.length;
@@ -232,10 +270,10 @@ export async function layoutPicture(A, S, groups, { seed = 1, brush = null, laye
         const j = (cy + pts[p + 1]) * W + cx + pts[p];
         occ[j] = 1; owner[j] = idx; R += rgb[j * 3]; G += rgb[j * 3 + 1]; B += rgb[j * 3 + 2];
       }
-      placements.push({ g: gi, sh: text, mw: pts.mw, x: cx, y: cy, s, ang, f, color: [R / n, G / n, B / n], j: r() * 2 - 1 });
-      if (owedList && owed.get(gi) > 0) {
-        owed.set(gi, owed.get(gi) - 1);
-        owedList = owedList.filter((g) => owed.get(g) > 0);
+      placements.push({ g: gi, sh: used.text, br: used.br, lines: used.br.length + 1, mw: pts.mw, x: cx, y: cy, s, ang, f, color: [R / n, G / n, B / n], j: r() * 2 - 1 });
+      if (owedList && book.get(gi) > 0) {
+        book.set(gi, book.get(gi) - 1);
+        owedList = owedList.filter((g) => book.get(g) > 0);
         if (!owedList.length) break;
       }
       if (performance.now() - last > budgetMs) { await new Promise((res) => setTimeout(res, 0)); last = performance.now(); }

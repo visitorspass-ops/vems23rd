@@ -158,7 +158,18 @@ export function initAdmin(backend, { canSegment = true, canDownload = true } = {
     if (tab === 'pins') drawPinMarks(art);
     $('edInfo').textContent = S.person !== 'off' && !parts().person
       ? 'No person marked yet, so words fill the whole picture. Use Find the person, or paint her in the Brush tab.'
-      : `${art.L.placements.length} accent words${art.R ? ` and ${art.R.runs.length} rows of tiny text` : ''}${art.G ? `, plus ${art.G.placements.length} glaze words` : ''}. Starred descriptions get the biggest spots. The site uses the real descriptions, repeated to fill the space.`;
+      : readableNote(art);
+  }
+
+  // How many descriptions got a spot big enough to read (the rest are only in the fine rows).
+  function readableNote(art) {
+    const need = Math.max(6, art.S.detail ? art.S.accentMin : art.S.minWord), best = new Map();
+    for (const p of art.L.placements) best.set(p.g, Math.max(best.get(p.g) || 0, p.s));
+    const total = art.groups.length, ok = art.groups.filter((g, i) => (best.get(i) || 0) >= need).length;
+    const wrapped = art.L.placements.filter((p) => (p.lines || 1) > 1).length;
+    let t = `${ok} of ${total} descriptions have a readable spot${wrapped ? ` (${wrapped} wrapped onto 2 or 3 lines)` : ''}; all of them also run through the fine text rows.`;
+    if (ok < total) t += ' For more readable spots: "Everything in words", fewer descriptions per picture, or larger "Biggest words".';
+    return t;
   }
 
   // The pixelated color patches the words are matched to.
